@@ -43,6 +43,10 @@ export class AuthStack extends Stack {
 
     userPool.addDomain('HostedUiDomain', {
       cognitoDomain: { domainPrefix: props.domainPrefix },
+      // The classic Hosted UI looks dated; Managed Login is Cognito's
+      // modern, responsive redesign — a real visual upgrade even with
+      // zero custom branding applied on top.
+      managedLoginVersion: cognito.ManagedLoginVersion.NEWER_MANAGED_LOGIN,
     });
 
     const userPoolClient = userPool.addClient('SpaClient', {
@@ -60,6 +64,15 @@ export class AuthStack extends Stack {
       refreshTokenValidity: Duration.days(7),
     });
     this.userPoolClient = userPoolClient;
+
+    // Cognito-provided defaults for Managed Login — a real designer is
+    // available in the console later if custom colors/logo are wanted,
+    // this just switches the client on to the modern style.
+    new cognito.CfnManagedLoginBranding(this, 'ManagedLoginBranding', {
+      userPoolId: userPool.userPoolId,
+      clientId: userPoolClient.userPoolClientId,
+      useCognitoProvidedValues: true,
+    });
 
     new CfnOutput(this, 'UserPoolId', { value: userPool.userPoolId });
     new CfnOutput(this, 'UserPoolClientId', { value: userPoolClient.userPoolClientId });

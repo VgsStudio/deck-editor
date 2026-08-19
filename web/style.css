@@ -254,11 +254,22 @@ body {
 .gate-card h1 { margin: 0; font-size: 20px; }
 .gate-card p { margin: 0; color: #a99d8c; font-size: 14px; }
 
+.gate-emoji {
+  font-size: 34px;
+  line-height: 1;
+  margin-bottom: 2px;
+  filter: drop-shadow(0 4px 12px rgba(255, 106, 33, 0.35));
+}
+
 #btn-login {
   align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font: inherit;
   font-size: 14px;
-  padding: 10px 20px;
+  letter-spacing: 0.2px;
+  padding: 11px 22px;
   border-radius: 10px;
   border: none;
   background: linear-gradient(135deg, #ff6a21, #c4342a);
@@ -266,8 +277,14 @@ body {
   font-weight: 600;
   cursor: pointer;
   box-shadow: 0 4px 18px rgba(255, 106, 33, 0.35);
+  transition: filter 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
-#btn-login:hover { filter: brightness(1.1); }
+#btn-login:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 6px 24px rgba(255, 106, 33, 0.5);
+  transform: translateY(-1px);
+}
+#btn-login:active { transform: translateY(0); }
 
 #talk-search {
   font: inherit;
