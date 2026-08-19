@@ -31,6 +31,7 @@ const els = {
   btnLogout: document.getElementById('btn-logout'),
   presentOverlay: document.getElementById('present-overlay'),
   presentFrame: document.getElementById('present-frame'),
+  previewLoading: document.getElementById('preview-loading'),
   gateOverlay: document.getElementById('gate-overlay'),
   gateLogin: document.getElementById('gate-login'),
   gateBrowse: document.getElementById('gate-browse'),
@@ -248,35 +249,61 @@ async function openTalk(entry) {
   closeGate();
   els.talkTitle.textContent = entry.label;
   setStatus('carregando…', '');
+  els.previewLoading.hidden = false;
 
-  const res = await fetch(`${cfg.contentBase}/materiais/${entry.slug}/index.html`, { cache: 'no-store' });
-  if (!res.ok) {
-    setStatus(`erro ao carregar: ${res.status}`, 'error');
-    return;
+  try {
+    const res = await fetch(`${cfg.contentBase}/materiais/${entry.slug}/index.html`, { cache: 'no-store' });
+    if (!res.ok) {
+      setStatus(`erro ao carregar: ${res.status}`, 'error');
+      return;
+    }
+    const text = await res.text();
+
+    const htmlStart = text.search(/<html[\s>]/i);
+    docPrefix = htmlStart > 0 ? text.slice(0, htmlStart) : '';
+    sourceDoc = new DOMParser().parseFromString(text, 'text/html');
+
+    undoStack.length = 0;
+    redoStack.length = 0;
+    updateUndoRedoButtons();
+
+    zoomFactor = 1;
+    await renderPreviewFromSource(0);
+
+    dirty = false;
+    els.btnPublish.disabled = true;
+    els.modeTrigger.disabled = false;
+    editModeValue = 'edit';
+    els.modeOptions.querySelectorAll('.mode-option').forEach((b) => b.classList.toggle('active', b.dataset.mode === 'edit'));
+    els.zoomOut.disabled = false;
+    els.zoomIn.disabled = false;
+    els.zoomReset.disabled = false;
+    els.btnPresent.disabled = false;
+    setStatus('', '');
+  } finally {
+    els.previewLoading.hidden = true;
   }
-  const text = await res.text();
+}
 
-  const htmlStart = text.search(/<html[\s>]/i);
-  docPrefix = htmlStart > 0 ? text.slice(0, htmlStart) : '';
-  sourceDoc = new DOMParser().parseFromString(text, 'text/html');
-
-  undoStack.length = 0;
-  redoStack.length = 0;
-  updateUndoRedoButtons();
-
-  zoomFactor = 1;
-  await renderPreviewFromSource(0);
-
-  dirty = false;
-  els.btnPublish.disabled = true;
-  els.modeTrigger.disabled = false;
-  editModeValue = 'edit';
-  els.modeOptions.querySelectorAll('.mode-option').forEach((b) => b.classList.toggle('active', b.dataset.mode === 'edit'));
-  els.zoomOut.disabled = false;
-  els.zoomIn.disabled = false;
-  els.zoomReset.disabled = false;
-  els.btnPresent.disabled = false;
-  setStatus('', '');
+// Fetches every local <img> in parallel instead of one at a time — with
+// ~20 images per deck, sequential awaits were most of what made opening a
+// talk feel slow.
+async function hydrateImages(doc) {
+  const imgs = Array.from(doc.querySelectorAll('img')).filter((img) => {
+    const src = img.getAttribute('src') || '';
+    return src && !/^https?:/i.test(src);
+  });
+  await Promise.all(
+    imgs.map(async (img) => {
+      const src = img.getAttribute('src');
+      try {
+        const imgBlob = await readFileAt(currentSlug, src);
+        img.setAttribute('src', URL.createObjectURL(imgBlob));
+      } catch (err) {
+        console.warn('could not load image', src, err);
+      }
+    }),
+  );
 }
 
 async function renderPreviewFromSource(targetSlideIndex) {
@@ -304,16 +331,7 @@ async function renderPreviewFromSource(targetSlideIndex) {
   `;
   previewDoc.head.appendChild(overrideStyle);
 
-  for (const img of Array.from(previewDoc.querySelectorAll('img'))) {
-    const src = img.getAttribute('src') || '';
-    if (!src || /^https?:/i.test(src)) continue;
-    try {
-      const imgBlob = await readFileAt(currentSlug, src);
-      img.setAttribute('src', URL.createObjectURL(imgBlob));
-    } catch (err) {
-      console.warn('could not load image', src, err);
-    }
-  }
+  await hydrateImages(previewDoc);
 
   const blob = new Blob([docPrefix + previewDoc.documentElement.outerHTML], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
@@ -339,16 +357,7 @@ async function enterPresentMode() {
   if (!sourceDoc || !currentSlug || !slidePairs[currentSlide]) return;
 
   const presentDoc = new DOMParser().parseFromString(sourceDoc.documentElement.outerHTML, 'text/html');
-  for (const img of Array.from(presentDoc.querySelectorAll('img'))) {
-    const src = img.getAttribute('src') || '';
-    if (!src || /^https?:/i.test(src)) continue;
-    try {
-      const imgBlob = await readFileAt(currentSlug, src);
-      img.setAttribute('src', URL.createObjectURL(imgBlob));
-    } catch (err) {
-      console.warn('could not load image for present mode', src, err);
-    }
-  }
+  await hydrateImages(presentDoc);
 
   const targetId = slidePairs[currentSlide].sourceSlide.id || `slide-${currentSlide + 1}`;
   const blob = new Blob([docPrefix + presentDoc.documentElement.outerHTML], { type: 'text/html' });
