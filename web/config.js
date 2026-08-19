@@ -5,6 +5,6 @@ window.SLIDES_EDITOR_CONFIG = {
   cognitoDomain: 'https://vgs-slides-editor.auth.us-east-1.amazoncognito.com',
   userPoolClientId: '74jku099cpn3pblea49rqhit16',
   apiUrl: 'https://3843f805vf.execute-api.us-east-1.amazonaws.com',
-  redirectUri: 'https://slides.vsoller.com.br/',
+  redirectUri: 'https://deck.vsoller.com.br/',
   contentBase: 'https://vsoller.com.br',
 };

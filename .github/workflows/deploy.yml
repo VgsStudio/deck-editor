@@ -1,4 +1,4 @@
-name: Deploy slides-editor
+name: Deploy deck-editor
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: deploy-slides-editor
+  group: deploy-deck-editor
   cancel-in-progress: false
 
 jobs:

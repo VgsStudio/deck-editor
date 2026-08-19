@@ -30,7 +30,7 @@ function emailHtml({ heading, intro, code, footer }) {
     </tr>
     <tr>
       <td style="padding:18px 8px;text-align:center;font-size:11px;color:#5a5148;">
-        editor.slides.vsoller.com.br
+        deck.vsoller.com.br
       </td>
     </tr>
   </table>

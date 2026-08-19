@@ -8,7 +8,7 @@ import { OidcStack } from '../lib/oidc-stack';
 
 const ZONE_NAME = 'vsoller.com.br';
 const HOSTED_ZONE_ID = 'Z02751983QMG471PEMGX6';
-const DOMAIN_NAME = `slides.${ZONE_NAME}`;
+const DOMAIN_NAME = `deck.${ZONE_NAME}`;
 // Existing wildcard cert (*.vsoller.com.br, us-east-1) — covers this
 // subdomain already, no new cert/DNS-validation step needed.
 const WILDCARD_CERT_ARN = 'arn:aws:acm:us-east-1:605914448173:certificate/bfa41f72-6051-4776-84b2-a5ed9ac68370';
@@ -49,5 +49,9 @@ new ApiStack(app, 'SlidesEditor-Api', {
 
 new OidcStack(app, 'SlidesEditor-Oidc', {
   env,
-  githubRepo: 'VgsStudio@81604963/slides-editor@1339821987',
+  // Repo was renamed slides-editor -> deck-editor; the numeric IDs are
+  // immutable so this string still resolves to the same repo, but
+  // GitHub's actual sub-claim reflects the CURRENT name, so this needs
+  // to track it too.
+  githubRepo: 'VgsStudio@81604963/deck-editor@1339821987',
 });

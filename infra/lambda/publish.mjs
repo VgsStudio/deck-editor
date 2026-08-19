@@ -145,7 +145,7 @@ export const handler = async (event) => {
     const sha = await getExistingSha(token, repoPath);
 
     const commitBody = {
-      message: `slides-editor: publica ${repoPath}`,
+      message: `deck-editor: publica ${repoPath}`,
       content: contentBuffer.toString('base64'),
       branch: 'main',
     };
