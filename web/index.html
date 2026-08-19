@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Editor de palestras</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>%F0%9F%A4%93</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="toolbar">
+  <button id="btn-browse" title="Escolher outra palestra">🔎 Palestras</button>
+  <span id="talk-title" class="talk-title"></span>
+  <span class="spacer"></span>
+  <div class="zoom-controls">
+    <button id="zoom-out" title="Diminuir zoom" disabled>−</button>
+    <span id="zoom-level">100%</span>
+    <button id="zoom-in" title="Aumentar zoom" disabled>+</button>
+    <button id="zoom-reset" title="Ajustar à tela" disabled>ajustar</button>
+  </div>
+  <div class="mode-menu">
+    <button id="mode-trigger" class="mode-trigger" title="Modo edição/leitura" aria-haspopup="true" disabled>
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 20h9"></path>
+        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+      </svg>
+    </button>
+    <div id="mode-options" class="mode-options" hidden>
+      <button type="button" class="mode-option active" data-mode="edit">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"></path>
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+        </svg>
+        Editar
+      </button>
+      <button type="button" class="mode-option" data-mode="read">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+        Ler
+      </button>
+    </div>
+  </div>
+  <button id="btn-undo" title="Desfazer (Ctrl+Z)" disabled>↶ Desfazer</button>
+  <button id="btn-redo" title="Refazer (Ctrl+Shift+Z)" disabled>↷ Refazer</button>
+  <button id="btn-publish" disabled>Publicar</button>
+  <span id="status" class="status"></span>
+  <button id="btn-present" title="Tela cheia — roda a apresentação de verdade a partir do slide atual" disabled>⛶ Tela cheia</button>
+  <button id="btn-logout" title="Sair">Sair</button>
+</header>
+
+<div class="body">
+  <nav id="slide-nav" class="slide-nav"></nav>
+  <main class="preview-wrap">
+    <iframe id="preview" title="Preview do slide"></iframe>
+  </main>
+</div>
+
+<div id="present-overlay" class="present-overlay" hidden>
+  <iframe id="present-frame" title="Apresentação em tela cheia"></iframe>
+</div>
+
+<div id="gate-overlay" class="gate-overlay" hidden>
+  <div class="gate-card">
+    <div id="gate-login">
+      <h1>Editor de palestras</h1>
+      <p>Entre com a sua conta pra editar e publicar.</p>
+      <button id="btn-login">Entrar</button>
+    </div>
+    <div id="gate-browse" hidden>
+      <h1>Escolher palestra</h1>
+      <input id="talk-search" type="search" placeholder="Buscar palestra…" autocomplete="off">
+      <div id="talk-list" class="talk-list"></div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept="image/*" hidden>
+
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script src="editor.js"></script>
+</body>
+</html>
