@@ -165,7 +165,11 @@ async function writeFileAt(slug, relPath, fileOrBlob) {
       body: text,
     });
     if (!res.ok) throw new Error(await describeApiError(res));
-    return;
+    try {
+      return await res.json();
+    } catch {
+      return null;
+    }
   }
   const filename = relPath.split('/').pop();
   const res = await authedFetch(`${cfg.apiUrl}/talks/${slug}/images/${encodeURIComponent(filename)}`, {
@@ -607,9 +611,9 @@ async function publishTalk() {
     setStatus('publicando…', '');
     els.btnPublish.disabled = true;
     const html = docPrefix + sourceDoc.documentElement.outerHTML;
-    await writeFileAt(currentSlug, 'index.html', new Blob([html], { type: 'text/html' }));
+    const result = await writeFileAt(currentSlug, 'index.html', new Blob([html], { type: 'text/html' }));
     dirty = false;
-    setStatus('publicado — no ar em ~20s (build automático)', 'ok');
+    setStatus(result?.warning ? result.warning : 'publicado — já no ar', 'ok');
   } catch (err) {
     console.error(err);
     els.btnPublish.disabled = false;

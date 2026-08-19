@@ -43,6 +43,8 @@ new ApiStack(app, 'SlidesEditor-Api', {
   userPoolClient: authStack.userPoolClient,
   frontendOrigin: `https://${DOMAIN_NAME}`,
   githubRepo: 'VgsStudio/palestras',
+  siteBucketName: 'vitorportfolio-site-sitebucket397a1860-5squowxf4mji',
+  distributionId: 'E1ZT84FT2A52YB',
 });
 
 new OidcStack(app, 'SlidesEditor-Oidc', {

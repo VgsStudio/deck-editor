@@ -19,13 +19,25 @@ body {
 }
 
 /* ---------- glass panel base ---------- */
-.toolbar, .slide-nav, .preview-wrap, .gate-card {
+.toolbar, .slide-nav, .preview-wrap {
   background: rgba(20, 16, 13, 0.42);
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 18px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+
+/* The gate (login/search) sits over its own dim+blur backdrop already —
+   stacking the same low-opacity glass on top of that made text nearly
+   unreadable. Much more opaque here, same family as .mode-options. */
+.gate-card {
+  background: rgba(18, 15, 12, 0.94);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.09);
 }
 
 .toolbar {
@@ -53,6 +65,9 @@ body {
   background: rgba(255, 106, 33, 0.12);
 }
 .toolbar button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.icon-label-btn { display: inline-flex; align-items: center; gap: 7px; }
+.icon-label-btn svg { flex: none; opacity: 0.85; }
 
 .talk-title { font-size: 14px; color: #cfc7ba; font-weight: 600; }
 .spacer { flex: 1; }
@@ -257,11 +272,11 @@ body {
   font: inherit;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
   color: #f2eee8;
   cursor: pointer;
 }
-.talk-list-item:hover { border-color: rgba(255, 106, 33, 0.5); background: rgba(255, 106, 33, 0.1); }
+.talk-list-item:hover { border-color: rgba(255, 106, 33, 0.6); background: rgba(255, 106, 33, 0.18); }
 .talk-list-title { font-size: 14px; }
 .talk-list-date { font-size: 11px; color: #8a7e70; font-family: ui-monospace, monospace; flex: none; }

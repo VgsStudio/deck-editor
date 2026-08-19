@@ -1,23 +1,41 @@
-// Zero-build Lambda: only dependency is @aws-sdk/client-secrets-manager,
-// which ships inside the Node.js 22 managed runtime — nothing to npm
-// install, nothing to bundle, minimal supply-chain surface.
+// Zero-build Lambda: only dependencies are @aws-sdk/* packages, which ship
+// inside the Node.js 22 managed runtime — nothing to npm install, nothing
+// to bundle, minimal supply-chain surface.
 //
-// This function never touches S3/CloudFront. It validates the request,
-// then commits straight to VgsStudio/palestras via GitHub's Contents
-// API — the repo's own existing "Deploy palestras" Action is what
-// actually publishes. See slides-editor's planning notes for why.
+// Publish does two things, in order: (1) commit to VgsStudio/palestras via
+// GitHub's Contents API — this is what keeps git as the source of truth,
+// and its sha-based conflict check is what stops a stale edit from
+// clobbering someone else's concurrent change; (2) once that succeeds,
+// write the same bytes straight to S3 and invalidate CloudFront, so the
+// site updates immediately instead of waiting on the repo's own "Deploy
+// palestras" Action (which still runs on every push, just no longer on
+// the critical path — a safety net, not a bottleneck).
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { CloudFrontClient, CreateInvalidationCommand } from '@aws-sdk/client-cloudfront';
 
 const REPO = process.env.GITHUB_REPO;
 const SECRET_ARN = process.env.GITHUB_PAT_SECRET_ARN;
 const TALKS_JSON_URL = process.env.TALKS_JSON_URL;
+const SITE_BUCKET = process.env.SITE_BUCKET;
+const DISTRIBUTION_ID = process.env.DISTRIBUTION_ID;
 
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const IMAGE_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9_-]*\.(png|jpe?g|webp|gif|svg)$/i;
 const MAX_HTML_BYTES = 2 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
+const IMAGE_CONTENT_TYPES = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  webp: 'image/webp',
+  gif: 'image/gif',
+  svg: 'image/svg+xml',
+};
 
 const smClient = new SecretsManagerClient({});
+const s3Client = new S3Client({});
+const cfClient = new CloudFrontClient({});
 let cachedToken = null; // reused across warm invocations of the same execution environment
 
 async function getGithubToken() {
@@ -67,6 +85,29 @@ async function getExistingSha(token, apiPath) {
   throw new Error(`github GET ${apiPath} failed: ${res.status}`);
 }
 
+// repoPath mirrors materiais/<slug>/... 1:1 for html-type talks (see
+// palestras/scripts/build-manifest.mjs), so writing it straight to that
+// same key is equivalent to what the Action's own sync would produce.
+async function publishToSite(repoPath, contentBuffer, imageFilename) {
+  const key = `materiais/${repoPath}`;
+  const contentType = imageFilename
+    ? IMAGE_CONTENT_TYPES[imageFilename.slice(imageFilename.lastIndexOf('.') + 1).toLowerCase()] || 'application/octet-stream'
+    : 'text/html; charset=utf-8';
+
+  await s3Client.send(
+    new PutObjectCommand({ Bucket: SITE_BUCKET, Key: key, Body: contentBuffer, ContentType: contentType }),
+  );
+  await cfClient.send(
+    new CreateInvalidationCommand({
+      DistributionId: DISTRIBUTION_ID,
+      InvalidationBatch: {
+        CallerReference: `slides-editor-${Date.now()}`,
+        Paths: { Quantity: 1, Items: [`/${key}`] },
+      },
+    }),
+  );
+}
+
 export const handler = async (event) => {
   try {
     const slug = event.pathParameters?.slug;
@@ -112,6 +153,19 @@ export const handler = async (event) => {
 
     const putRes = await githubRequest(token, 'PUT', repoPath, commitBody);
     if (putRes.status === 200 || putRes.status === 201) {
+      try {
+        await publishToSite(repoPath, contentBuffer, isImageRoute ? filename : null);
+      } catch (err) {
+        // Git already has it — the Action will catch S3/CloudFront up on
+        // its own within its normal ~20s. Not a failure from the user's
+        // point of view, just slower than usual this one time.
+        console.error('direct S3/CloudFront publish failed after git commit succeeded', err);
+        return jsonResponse(200, {
+          ok: true,
+          path: repoPath,
+          warning: 'commitado, mas a atualização instantânea falhou — deve aparecer no ar em ~20s pelo build automático',
+        });
+      }
       return jsonResponse(200, { ok: true, path: repoPath });
     }
     if (putRes.status === 409 || putRes.status === 422) {

@@ -6,6 +6,8 @@ import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 
 export interface ApiStackProps extends StackProps {
@@ -15,18 +17,25 @@ export interface ApiStackProps extends StackProps {
   frontendOrigin: string;
   /** owner/repo of the content repo the publish Lambda commits to. */
   githubRepo: string;
+  /** Existing portfolio site bucket/distribution — referenced, not owned. */
+  siteBucketName: string;
+  distributionId: string;
 }
 
 /**
- * Write-only API: two PUT routes that end in a git commit to the
- * `palestras` repo (via GitHub's Contents API), never a direct S3 write.
- * That keeps the repo as the single source of truth — the existing
- * "Deploy palestras" GitHub Action is what actually publishes, exactly
- * as it does for any other push. See slides-editor infra notes / the
- * planning doc for why this replaced an earlier direct-to-S3 design.
+ * Write-only API: two PUT routes. The Lambda commits to the `palestras`
+ * repo first (via GitHub's Contents API, using the file's current `sha` —
+ * so a concurrent edit from elsewhere fails the commit instead of being
+ * silently clobbered), which keeps git as the single source of truth and
+ * gives every publish a revertable history. Once that commit succeeds, it
+ * ALSO writes the same content straight to S3 + invalidates CloudFront —
+ * so the site updates immediately instead of waiting on the existing
+ * "Deploy palestras" Action, which still runs on every push as a
+ * redundant safety net but is no longer on the critical path.
  *
- * The Lambda's only AWS permission is reading the one GitHub PAT secret
- * — no S3, no CloudFront. A bug here has nothing destructive to reach.
+ * IAM is scoped the same way as the palestras repo's own
+ * `github-actions-talks-deploy` role: S3 write limited to `materiais/*`,
+ * CloudFront invalidation limited to this one distribution. Nothing wider.
  */
 export class ApiStack extends Stack {
   public readonly apiUrl: string;
@@ -40,6 +49,8 @@ export class ApiStack extends Stack {
         'Fine-grained GitHub PAT, scoped to Contents:write on VgsStudio/palestras only. Value set manually after deploy — never written by CDK.',
     });
 
+    const siteBucket = s3.Bucket.fromBucketName(this, 'SiteBucket', props.siteBucketName);
+
     const publishFn = new lambda.Function(this, 'PublishFn', {
       runtime: lambda.Runtime.NODEJS_22_X,
       architecture: lambda.Architecture.ARM_64,
@@ -51,9 +62,26 @@ export class ApiStack extends Stack {
         GITHUB_REPO: props.githubRepo,
         GITHUB_PAT_SECRET_ARN: githubPatSecret.secretArn,
         TALKS_JSON_URL: 'https://vsoller.com.br/materiais/talks.json',
+        SITE_BUCKET: props.siteBucketName,
+        DISTRIBUTION_ID: props.distributionId,
       },
     });
     githubPatSecret.grantRead(publishFn);
+
+    publishFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        sid: 'WriteMateriaisPrefix',
+        actions: ['s3:PutObject'],
+        resources: [siteBucket.arnForObjects('materiais/*')],
+      }),
+    );
+    publishFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        sid: 'InvalidateMateriaisPaths',
+        actions: ['cloudfront:CreateInvalidation'],
+        resources: [`arn:aws:cloudfront::${this.account}:distribution/${props.distributionId}`],
+      }),
+    );
 
     const httpApi = new apigwv2.HttpApi(this, 'HttpApi', {
       createDefaultStage: false,
